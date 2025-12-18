@@ -1,0 +1,24 @@
+{
+  "name": "llm-ecosystem-core",
+  "version": "1.0.0",
+  "description": "LLM Ecosystem Core - Aggregation layer for LLM ecosystem",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "ecosystem-core": "dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "cli": "node dist/cli.js",
+    "test": "npm run build && node dist/tests/index.js",
+    "test:adapters": "npm run build && node dist/tests/adapters.test.js",
+    "test:sdk": "npm run build && node dist/tests/sdk.test.js"
+  },
+  "dependencies": {
+    "claude-flow": "^2.7.47"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  }
+}
