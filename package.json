@@ -9,6 +9,7 @@
   },
   "scripts": {
     "build": "tsc",
+    "start": "node dist/src/server.js",
     "cli": "node dist/cli.js",
     "test": "npm run build && node dist/tests/index.js",
     "test:adapters": "npm run build && node dist/tests/adapters.test.js",
