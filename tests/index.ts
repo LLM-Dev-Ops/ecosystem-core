@@ -5,6 +5,7 @@
 
 import { runTests as runAdapterTests } from './adapters.test';
 import { runTests as runSDKTests } from './sdk.test';
+import { runTests as runExecutionTests } from './execution.test';
 
 /**
  * Run all test suites
@@ -17,6 +18,7 @@ export async function runAllTests() {
   const results = {
     adapters: { passed: 0, failed: 0 },
     sdk: { passed: 0, failed: 0 },
+    execution: { passed: 0, failed: 0 },
   };
 
   // Run adapter tests
@@ -33,15 +35,23 @@ export async function runAllTests() {
     console.error('Error running SDK tests:', error);
   }
 
+  // Run execution engine tests
+  try {
+    results.execution = await runExecutionTests();
+  } catch (error) {
+    console.error('Error running execution tests:', error);
+  }
+
   // Print summary
   console.log('\n========================================');
   console.log('Test Summary');
   console.log('========================================');
   console.log(`Adapter Tests: ${results.adapters.passed} passed, ${results.adapters.failed} failed`);
   console.log(`SDK Tests: ${results.sdk.passed} passed, ${results.sdk.failed} failed`);
+  console.log(`Execution Tests: ${results.execution.passed} passed, ${results.execution.failed} failed`);
 
-  const totalPassed = results.adapters.passed + results.sdk.passed;
-  const totalFailed = results.adapters.failed + results.sdk.failed;
+  const totalPassed = results.adapters.passed + results.sdk.passed + results.execution.passed;
+  const totalFailed = results.adapters.failed + results.sdk.failed + results.execution.failed;
 
   console.log(`\nTotal: ${totalPassed} passed, ${totalFailed} failed`);
   console.log('========================================\n');

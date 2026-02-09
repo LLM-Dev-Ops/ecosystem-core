@@ -50,6 +50,44 @@ export {
 } from './sdk';
 
 // ============================================================================
+// Execution engine instrumentation
+// ============================================================================
+export {
+  // Types
+  SpanType,
+  SpanStatus,
+  ExecutionSpan,
+  CoreSpan,
+  RepoSpan,
+  AgentSpan,
+  SpanArtifact,
+  SpanEvidence,
+  ValidationFailure,
+  ExecutionGraph,
+  CoreExecutionResult,
+  InvocationContext,
+  RepoExecutionResult,
+  // Span utilities
+  generateSpanId,
+  createCoreSpan,
+  createRepoSpan,
+  createAgentSpan,
+  completeSpan,
+  failSpan,
+  attachArtifact,
+  attachEvidence,
+  // Validator
+  validateExecutionGraph,
+  isValidExecutionGraph,
+  // Context
+  ExecutionContext,
+  // Instrumented SDK
+  InstrumentedSDKConfig,
+  InstrumentedEcosystemSDK,
+  createInstrumentedEcosystemSDK,
+} from './execution';
+
+// ============================================================================
 // Version
 // ============================================================================
 export const VERSION = '1.0.0';
