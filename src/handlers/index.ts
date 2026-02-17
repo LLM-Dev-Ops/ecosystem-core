@@ -3,4 +3,9 @@
  * Handlers process incoming requests and coordinate service calls
  */
 
-export {};
+export {
+  handleEventsPost,
+  forwardEvents,
+  getEventsConfig,
+  EventsConfig,
+} from './events.handler';

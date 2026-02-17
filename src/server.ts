@@ -1,4 +1,5 @@
 import http from 'http';
+import { handleEventsPost } from './handlers';
 
 const PORT = parseInt(process.env.PORT || '8080', 10);
 
@@ -10,6 +11,11 @@ const server = http.createServer((req, res) => {
       service: 'ecosystem-core',
       version: process.env.npm_package_version || 'unknown'
     }));
+    return;
+  }
+
+  if (req.url === '/v1/events' && req.method === 'POST') {
+    handleEventsPost(req, res);
     return;
   }
 
