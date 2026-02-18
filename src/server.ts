@@ -1,5 +1,5 @@
 import http from 'http';
-import { handleEventsPost } from './handlers';
+import { handleEventsPost, handleEcosystemEvent, handleMarketplaceEvent } from './handlers';
 
 const PORT = parseInt(process.env.PORT || '8080', 10);
 
@@ -16,6 +16,16 @@ const server = http.createServer((req, res) => {
 
   if (req.url === '/v1/events' && req.method === 'POST') {
     handleEventsPost(req, res);
+    return;
+  }
+
+  if (req.url === '/v1/ecosystem/event' && req.method === 'POST') {
+    handleEcosystemEvent(req, res);
+    return;
+  }
+
+  if (req.url === '/v1/marketplace/event' && req.method === 'POST') {
+    handleMarketplaceEvent(req, res);
     return;
   }
 

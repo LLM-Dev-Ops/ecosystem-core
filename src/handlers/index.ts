@@ -9,3 +9,8 @@ export {
   getEventsConfig,
   EventsConfig,
 } from './events.handler';
+
+export {
+  handleEcosystemEvent,
+  handleMarketplaceEvent,
+} from './ingest.handler';
