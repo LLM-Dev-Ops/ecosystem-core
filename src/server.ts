@@ -3,7 +3,7 @@ import { handleEventsPost, handleEcosystemEvent, handleMarketplaceEvent } from '
 
 const PORT = parseInt(process.env.PORT || '8080', 10);
 
-const server = http.createServer((req, res) => {
+export function requestHandler(req: http.IncomingMessage, res: http.ServerResponse): void {
   if (req.url === '/health' && req.method === 'GET') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({
@@ -29,10 +29,20 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  res.writeHead(200, { 'Content-Type': 'application/json' });
-  res.end(JSON.stringify({ status: 'ok' }));
-});
+  res.writeHead(404, {
+    'Content-Type': 'application/json',
+    'Cache-Control': 'no-store',
+    'X-Content-Type-Options': 'nosniff',
+  });
+  res.end(JSON.stringify({ error: 'Not found' }));
+}
 
-server.listen(PORT, () => {
-  console.log(`Server listening on port ${PORT}`);
-});
+export function createServer(): http.Server {
+  return http.createServer(requestHandler);
+}
+
+if (require.main === module) {
+  createServer().listen(PORT, () => {
+    console.log(`Server listening on port ${PORT}`);
+  });
+}

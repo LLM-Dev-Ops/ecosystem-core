@@ -4,8 +4,9 @@
  */
 
 import http from 'http';
+import { readJsonObject, sendJson } from './request-body';
 
-interface IngestEvent {
+interface IngestEvent extends Record<string, unknown> {
   source: string;
   event_type: string;
   execution_id: string;
@@ -13,12 +14,28 @@ interface IngestEvent {
   payload: Record<string, unknown>;
 }
 
-function readBody(req: http.IncomingMessage): Promise<string> {
-  return new Promise((resolve) => {
-    const chunks: Buffer[] = [];
-    req.on('data', (chunk: Buffer) => chunks.push(chunk));
-    req.on('end', () => resolve(Buffer.concat(chunks).toString('utf-8')));
-  });
+const SAFE_TEXT = /^[^\u0000-\u001f\u007f]+$/;
+
+function isBoundedText(value: unknown, maxLength: number): value is string {
+  return (
+    typeof value === 'string' &&
+    value.length > 0 &&
+    value.length <= maxLength &&
+    SAFE_TEXT.test(value)
+  );
+}
+
+function isIngestEvent(value: Record<string, unknown>): value is unknown & IngestEvent {
+  return (
+    isBoundedText(value.source, 128) &&
+    isBoundedText(value.event_type, 128) &&
+    isBoundedText(value.execution_id, 256) &&
+    isBoundedText(value.timestamp, 64) &&
+    Number.isFinite(Date.parse(value.timestamp)) &&
+    typeof value.payload === 'object' &&
+    value.payload !== null &&
+    !Array.isArray(value.payload)
+  );
 }
 
 function handleIngest(
@@ -26,33 +43,24 @@ function handleIngest(
   req: http.IncomingMessage,
   res: http.ServerResponse
 ): void {
-  readBody(req).then((body) => {
-    if (!body) {
-      res.writeHead(400, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'Request body is required' }));
+  readJsonObject(req).then((result) => {
+    if (!result.ok) {
+      sendJson(res, result.status, { error: result.error });
       return;
     }
 
-    let event: IngestEvent;
-    try {
-      event = JSON.parse(body);
-    } catch {
-      res.writeHead(400, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'Invalid JSON' }));
+    if (!isIngestEvent(result.value)) {
+      sendJson(res, 400, { error: 'Invalid event envelope' });
       return;
     }
 
-    console.log(
-      `[${label}] event received source=${event.source} execution_id=${event.execution_id}`
-    );
+    const event = result.value;
+    console.log(`[${label}] valid event accepted`);
 
-    res.writeHead(202, { 'Content-Type': 'application/json' });
-    res.end(
-      JSON.stringify({
-        status: 'accepted',
-        execution_id: event.execution_id,
-      })
-    );
+    sendJson(res, 202, {
+      status: 'accepted',
+      execution_id: event.execution_id,
+    });
   });
 }
 

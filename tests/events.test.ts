@@ -8,6 +8,9 @@
 
 import http from 'http';
 import { handleEventsPost, forwardEvents } from '../src/handlers/events.handler';
+import { handleEcosystemEvent } from '../src/handlers/ingest.handler';
+import { createServer } from '../src/server';
+import { MAX_JSON_BODY_BYTES } from '../src/handlers/request-body';
 
 // Simple test framework (matches project convention)
 let testsPassed = 0;
@@ -46,12 +49,17 @@ function assertTruthy(value: unknown, message?: string) {
 /**
  * Create a mock IncomingMessage that emits the given body
  */
-function createMockRequest(body: string, method = 'POST', url = '/v1/events'): http.IncomingMessage {
+function createMockRequest(
+  body: string,
+  method = 'POST',
+  url = '/v1/events',
+  contentType = 'application/json'
+): http.IncomingMessage {
   const { PassThrough } = require('stream');
   const stream = new PassThrough();
   stream.method = method;
   stream.url = url;
-  stream.headers = { 'content-type': 'application/json' };
+  stream.headers = { 'content-type': contentType };
 
   // Push body data asynchronously
   process.nextTick(() => {
@@ -151,6 +159,85 @@ async function testHandlerReturns400ForInvalidJson() {
   assertEqual(res._statusCode, 400, 'Should return 400 for invalid JSON');
   const body = JSON.parse(res._body);
   assertEqual(body.error, 'Invalid JSON', 'Should indicate invalid JSON');
+}
+
+async function testHandlerRejectsNonJsonContentType() {
+  const req = createMockRequest('{"type":"test"}', 'POST', '/v1/events', 'text/plain');
+  const res = createMockResponse();
+
+  handleEventsPost(req, res);
+  await waitForResponse(res);
+
+  assertEqual(res._statusCode, 415, 'Should require a JSON content type');
+}
+
+async function testHandlerRejectsNonObjectJson() {
+  const req = createMockRequest('[1,2,3]');
+  const res = createMockResponse();
+
+  handleEventsPost(req, res);
+  await waitForResponse(res);
+
+  assertEqual(res._statusCode, 400, 'Should require a JSON object');
+}
+
+async function testHandlerRejectsOversizedBody() {
+  const req = createMockRequest(JSON.stringify({ value: 'x'.repeat(MAX_JSON_BODY_BYTES) }));
+  const res = createMockResponse();
+
+  handleEventsPost(req, res);
+  await waitForResponse(res);
+
+  assertEqual(res._statusCode, 413, 'Should reject an oversized body');
+}
+
+async function testLeafHandlerValidatesEnvelope() {
+  const req = createMockRequest('{"source":"test"}', 'POST', '/v1/ecosystem/event');
+  const res = createMockResponse();
+
+  handleEcosystemEvent(req, res);
+  await waitForResponse(res);
+
+  assertEqual(res._statusCode, 400, 'Should reject an incomplete event envelope');
+}
+
+async function testLeafHandlerAcceptsValidEnvelope() {
+  const event = {
+    source: 'test-suite',
+    event_type: 'run.completed',
+    execution_id: 'exec-123',
+    timestamp: '2026-10-26T18:00:00.000Z',
+    payload: { status: 'ok' },
+  };
+  const req = createMockRequest(JSON.stringify(event), 'POST', '/v1/ecosystem/event');
+  const res = createMockResponse();
+
+  handleEcosystemEvent(req, res);
+  await waitForResponse(res);
+
+  assertEqual(res._statusCode, 202, 'Should accept a valid event envelope');
+  assertEqual(JSON.parse(res._body).execution_id, event.execution_id);
+}
+
+async function testUnknownRouteReturns404() {
+  const server = createServer();
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const address = server.address();
+  if (!address || typeof address === 'string') throw new Error('Server did not bind');
+
+  try {
+    const status = await new Promise<number>((resolve, reject) => {
+      http.get(`http://127.0.0.1:${address.port}/missing`, (res) => {
+        res.resume();
+        res.on('end', () => resolve(res.statusCode || 0));
+      }).on('error', reject);
+    });
+    assertEqual(status, 404, 'Unknown route should return 404');
+  } finally {
+    await new Promise<void>((resolve, reject) =>
+      server.close((error) => (error ? reject(error) : resolve()))
+    );
+  }
 }
 
 async function testHandlerSetsJsonContentType() {
@@ -262,6 +349,12 @@ export async function runTests() {
     test('handleEventsPost returns 202 for valid JSON', testHandlerReturns202ForValidJson),
     test('handleEventsPost returns 400 for empty body', testHandlerReturns400ForEmptyBody),
     test('handleEventsPost returns 400 for invalid JSON', testHandlerReturns400ForInvalidJson),
+    test('handleEventsPost rejects non-JSON content type', testHandlerRejectsNonJsonContentType),
+    test('handleEventsPost rejects non-object JSON', testHandlerRejectsNonObjectJson),
+    test('handleEventsPost rejects oversized body', testHandlerRejectsOversizedBody),
+    test('leaf handler validates event envelope', testLeafHandlerValidatesEnvelope),
+    test('leaf handler accepts valid event envelope', testLeafHandlerAcceptsValidEnvelope),
+    test('unknown route returns 404', testUnknownRouteReturns404),
     test('handleEventsPost sets JSON content type', testHandlerSetsJsonContentType),
     test('forwardEvents POSTs to all downstream endpoints', testForwardEventsPostsToAllEndpoints),
     test('forwardEvents handles connection errors gracefully', testForwardEventsHandlesConnectionErrors),
