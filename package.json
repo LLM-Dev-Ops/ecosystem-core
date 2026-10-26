@@ -15,11 +15,9 @@
     "test:adapters": "npm run build && node dist/tests/adapters.test.js",
     "test:sdk": "npm run build && node dist/tests/sdk.test.js"
   },
-  "dependencies": {
-    "claude-flow": "^2.7.47"
-  },
+  "dependencies": {},
   "devDependencies": {
-    "@types/node": "^20.0.0",
-    "typescript": "^5.0.0"
+    "@types/node": "20.19.24",
+    "typescript": "5.9.3"
   }
 }
